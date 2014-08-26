@@ -9,8 +9,18 @@
 #ifndef EVENTS_H
 #define EVENTS_H
 
-
 #include "logging.h"
+
+//if you change pins here, make sure to also change them in
+//the string_from_pin() function in logging.c
+//3, 5, 6, 9, 10, 11, 13
+#define PIN1 3
+#define PIN2 5
+#define PIN3 6
+#define PIN4 9
+#define PIN5 10
+#define PIN6 11
+#define PIN7 13
 
 #define DIGITAL_WRITE_FUNC 0
 #define ANALOG_WRITE_FUNC 1
@@ -32,7 +42,8 @@ int schedule_event(unsigned long time, unsigned char write_function,
 /* returns the number of events executed, or less than zero on error
  */
 int execute_events();
-
 int clear_events();
+int log_event_queue();
+static char* string_from_pin(const char pin);
 
 #endif

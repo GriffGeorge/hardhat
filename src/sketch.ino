@@ -4,67 +4,118 @@ char foo; //WHY!? This apparently fixes some problems. fml.
 2014 Mandy and Griff
 */
 
-#include <stdlib.h>
-#include "events.h"
-
+#include "lights.h"
 
 void setup()
 {
+    pinMode(PIN1, OUTPUT);
+    pinMode(PIN2, OUTPUT);
+    pinMode(PIN3, OUTPUT);
+    pinMode(PIN4, OUTPUT);
+    pinMode(PIN5, OUTPUT);
+    pinMode(PIN6, OUTPUT);
+    pinMode(PIN7, OUTPUT);
+
     Serial.begin(9600);
+    // Uncomment to have the arduino wait for serial to connect
+    ///*
     while(!Serial) {
         delay(10); //wait for serial port to connect
     }
+    //*/
 
     test_events();
 }
 
 void loop()
 {
-    Serial.println("Delay 3 seconds");
-    Serial.println("Holy shit!");
-    delay(3000);
+    Serial.println("D");
+    delay(6000);
 }
 
 
 void test_events() {
-    unsigned long time; // will be used multiple times to store time values
+    Serial.println("BEGIN TEST");
+    //test_1();
+    //test_2();
+    //test_3();
+    test_4();
+    Serial.println("END TEST");
+}
 
-    Serial.println("\n\n\n-------------------------------------");
-    Serial.println("Three blinks to start test.");
-    digitalWrite(10, HIGH);
-    delay(500);
-    digitalWrite(10, LOW);
-    digitalWrite(11, HIGH);
-    delay(500);
-    digitalWrite(11, LOW);
-    digitalWrite(13, HIGH);
-    delay(500);
-    digitalWrite(13, LOW);
-
+/*
+void test_1() {
+    Serial.println("-- TEST #1 ------------------------------------");
     Serial.println("Execute empty events queue every 10ms for 30 times");
     for (int i = 0; i < 30; i++) {
         execute_events();
         delay(30);
     }
+}
 
-    time = millis() + 1000;
-    Serial.println("Schedule 10 HIGH in one second.");
-    schedule_event(time, DIGITAL_WRITE_FUNC, 10, HIGH);
-    int ret = 0;
-    while ((ret = execute_events()) == 0) {
-        ;
+void test_2() {
+    Serial.println("-- TEST #2 ------------------------------------");
+    Serial.println("Turn on left, center, then right, then turn all off at once.");
+    unsigned long time = millis() + 1000;
+    light_on(LED_CENTER, time+333);
+    light_on(LED_RIGHT, time+666);
+    light_off(LED_CENTER, time+1000);
+    light_off(LED_LEFT, time+1000);
+    light_off(LED_RIGHT, time+1000);
+    light_on(LED_LEFT, time);
+
+    Serial.println("Execute empty events queue every 10ms for 30 times");
+    while (millis() < time+2000) {
+        execute_events();
+        delay(10);
     }
-    Serial.print(ret); Serial.println(" event(s) executed");
+}
+*/
+/*
+void test_3() {
+    Serial.println("TEST #3");
+    unsigned long time = millis();
+    for (int i = 0; i < 1; i++) {
+        Serial.println("1");
+        execute_events();
+        Serial.println("2");
+        fade_light_on(LED_LEFT, 500, time);
+        fade_light_on(LED_CENTER, 500, time+333);
+        fade_light_on(LED_RIGHT, 500, time+666);
+        fade_light_off(LED_LEFT, 500, time+500);
+        fade_light_off(LED_CENTER, 500, time+833);
+        fade_light_off(LED_RIGHT, 500, time+1166);
+        Serial.println("4");
+        time += 1000;
+    }
+    while (millis() < time+1000) {
+        execute_events();
+    }
+}
+*/
 
-    Serial.println("Three blinks to end test.");
-    digitalWrite(10, HIGH);
-    delay(500);
-    digitalWrite(10, LOW);
-    digitalWrite(11, HIGH);
-    delay(500);
-    digitalWrite(11, LOW);
-    digitalWrite(13, HIGH);
-    delay(500);
-    digitalWrite(13, LOW);
-    Serial.println("Test Over");
+void test_4() {
+    Serial.println("TEST 4");
+    unsigned long time;
+    while (true) {
+    time= millis();
+        light_on(PIN1, time);
+        light_on(PIN2, time+100);
+        light_on(PIN3, time+200);
+        light_on(PIN4, time+300);
+        light_on(PIN5, time+400);
+        light_on(PIN6, time+500);
+        light_on(PIN7, time+600);
+        light_off(PIN1, time+700);
+        light_off(PIN2, time+700);
+        light_off(PIN3, time+700);
+        light_off(PIN4, time+700);
+        light_off(PIN5, time+700);
+        light_off(PIN6, time+700);
+        light_off(PIN7, time+700);
+        while (millis() < time+800) {
+            execute_events();
+        }
+    }
+
 }

@@ -13,18 +13,19 @@
 #
 
 MODEL=micro
+CFLAGS=-Os
 
 all: test build upload
 
 build: .build/
 
-.build/: build
+.build/: src/*
 	@echo "BUILD"
-	ino build -m $(MODEL)
+	ino build -m $(MODEL) #--cppflags="$(CFLAGS)"
 
-upload: .build
+upload: .build/
 	@echo "UPLOAD"
-	ino upload -m $(MODEL)
+	sudo ino upload -m $(MODEL)
 
 test: clean_test
 	@echo "TEST"
