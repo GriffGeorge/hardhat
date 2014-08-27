@@ -6,12 +6,31 @@
 
 //#include <stdlib.h>
 
+light_t lights[MAX_LIGHTS];
+int lights_size = 0;
+
 event_t *events = NULL;
 event_t *last_event = NULL;
 int events_size = 0;
 
-int schedule_event(unsigned long time, unsigned char write_function, 
-        unsigned char pin, unsigned char level)
+light_t* new_light(unsigned char pin) {
+    if (lights_size >= MAX_LIGHTS) {
+        log_error(ERR_TOO_MANY_LIGHTS, "Can't create light on pin %d", pin);
+        return ERR_TOO_MANY_LIGHTS;
+    }
+
+    lights[lights_size].pin = pin;
+    lights[lights_size].state = OFF_STATE;
+    lights[lights_size].level = 0;
+
+    lights_size++;
+
+    return &lights;
+}
+
+
+static int schedule_event(light_t *light, unsigned long start_time, 
+        unsigned long end_time, unsigned char to_state);
 {
     //log_verbose("Schedule event with time %lu, write_function %d, pin %s, level %d", 
     //        time, write_function, string_from_pin(pin), level);
@@ -20,10 +39,10 @@ int schedule_event(unsigned long time, unsigned char write_function,
     event_t *new_event = (event_t *) malloc(sizeof(event_t));
 
     //set up the new events parameters
-    new_event->time = time;
-    new_event->write_function = write_function;
-    new_event->pin = pin;
-    new_event->level = level;
+    new_event->light = light;
+    new_event->start_time = start_time;
+    new_event->end_time = end_time;
+    new_event->to_state = to_state;
     new_event->next = NULL;
 
     //add the new event to the list
@@ -43,19 +62,50 @@ int execute_event(const event_t *event) {
     if (event == NULL) {
         return ERR_BAD_PARAM;
     }
-    //log_verbose("Execute event %p with time %lu, write_function %d, pin %s, level %d",
-    //        event, event->time, event->write_function, 
-    //        string_from_pin(event->pin), event->level);
-    switch (event->write_function) {
-        case DIGITAL_WRITE_FUNC: 
-            digitalWrite(event->pin, event->level);
-            break;
-        case ANALOG_WRITE_FUNC:
-            analogWrite(event->pin, event->level);
-            break;
-        default:
-            return ERR_BAD_ENUM;
+
+    unsigned long current_time = millis();
+
+    if (current_time < event->start_time) {
+        return ERR_NOT_YET;
     }
+
+    if (current_time >= event->end_time) {
+        switch (event->to_state) {
+            case OFF_STATE:
+            case FADING_OFF_STATE:
+                digitalWrite(event->light->pin, MIN_LEVEL);
+                light->state = OFF_STATE;
+                break;
+            case ON_STATE:
+            case FADING_ON_STATE:
+                digitalWrite(event->light->pin, MAX_LEVEL);
+                light->state = ON_STATE;
+                break;
+            default:
+                log_error(ERR_INVALID_STATE, "");
+                return ERR_INVALID_STATE;
+        }
+        return SUCCESS;
+    }
+
+    event->light->state = event->to_state;
+
+    if (light->state == FADING_ON_STATE) {
+        analogWrite(light->pin, 
+                constrain(
+                    map(current_time, start_time, end_time, MIN_LEVEL, 
+                        MAX_LEVEL), 
+                    MIN_LEVEL, MAX_LEVEL));
+    } else if (light->state == FADING_OFF_STATE) {
+        analogWrite(light->pin, 
+                constrain(
+                    map(current_time, start_time, end_time, MAX_LEVEL, 
+                        MIN_LEVEL), 
+                    MIN_LEVEL, MAX_LEVEL));
+    } else {
+        log_error(ERR_UNEXPECTED, "");
+    }
+
     return SUCCESS;
 }
 
@@ -77,37 +127,46 @@ int execute_events()
     unsigned long current_time = millis();
         
     //execute the first event and delete it, if needed
-    while (cursor != NULL && current_time >= cursor->time) {
+    while (cursor != NULL && current_time >= cursor->start_time) {
         if (execute_event(cursor) == 0) {
             events_executed++;
         }
         
-        events = cursor->next;
-        free(cursor);
-        
-        //if the list is empty
-        if (events == NULL) {
-            last_event = NULL;
-            return events_executed;
+        if (cursor->start_time <= current_time 
+                && current_time <= cursor->end_time) {
+            //avoids an infinite loop
+            break;
+        } else if (current_time >= cursor->end_time) {
+            events = cursor->next;
+            free(cursor);
+            
+            //if the list is empty
+            if (events == NULL) {
+                last_event = NULL;
+                return events_executed;
+            }
+            cursor = events;
         }
 
-        cursor = events;
     }
 
-    //execute the rest of the events
+    //execute the rest of the events if the list isn't empty
     while (cursor->next != NULL) {
-        if (current_time >= cursor->next->time) {
+        if (current_time >= cursor->next->start_time) {
             if (execute_event(cursor->next) == 0) {
                 events_executed++;
             }
-            event_t *event_to_delete = cursor->next;
-            if (last_event == event_to_delete) {
-                last_event = cursor;
+
+            if (curent_time >= cursor->next->end_time) {
+                event_t *event_to_delete = cursor->next;
+                if (last_event == event_to_delete) {
+                    last_event = cursor;
+                }
+                cursor->next = cursor->next->next;
+                free(event_to_delete);
+                //log_event_queue();
+                continue;
             }
-            cursor->next = cursor->next->next;
-            free(event_to_delete);
-            //log_event_queue();
-            continue;
         }
         cursor = cursor->next;
     }
@@ -118,6 +177,7 @@ int execute_events()
 
 int clear_events()
 {
+    //TODO: if events are partway through, complete them.
     while (events != NULL) {
         event_t *event_to_delete = events;
         events = events->next;

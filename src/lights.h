@@ -8,7 +8,6 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 
-#include "events.h"
 #include "logging.h"
 
 #define MIN_LEVEL 0
@@ -16,22 +15,53 @@
 
 #define MIN_LEVEL_STEP 5
 
-//void light_on(const char light);
-void light_on(const char light, const unsigned long time);
-//void light_off(const char light);
-void light_off(const char light, const unsigned long time);
+#define MAX_LIGHTS 7
+#define MAX_PINS 13
 
-//void fade_light_on(const char light, const unsigned int duration);
-void fade_light_on(const char light, const unsigned int duration, 
+#define OFF_STATE           20
+#define ON_STATE            21
+#define FADING_OFF_STATE    22
+#define FADING_ON_STATE     23
+
+typedef struct light_s light_t;
+struct light_s {
+    unsigned char pin;
+    unsigned char state;
+    unsigned char level;
+}
+
+typedef struct event_s event_t;
+struct event_s {
+    light_t *light;
+    unsigned long start_time;
+    unsigned long end_time;
+    unsigned char to_state;
+    event_t *next;
+};
+
+light_t* new_light(unsigned char pin);
+
+void light_on(light_t *light);
+void light_on(light_t *light, const unsigned long time);
+void light_off(light_t *light);
+void light_off(light_t *light, const unsigned long time);
+
+void fade_light_on(light_t *light, const unsigned int duration);
+void fade_light_on(light_t *light, const unsigned int duration, 
         const unsigned long time);
-//void fade_light_off(const char light, const unsigned int duration);
-void fade_light_off(const char light, const unsigned int duration,
-        const unsigned long time);
-//void fade_light(const char light, const unsigned int duration,
-//        const unsigned char level_start, const unsigned char level_end);
-void fade_light(const char light, const unsigned int duration,
-        const unsigned char level_start, const unsigned char level_end,
+void fade_light_off(light_t *light, const unsigned int duration);
+void fade_light_off(light_t *light, const unsigned int duration,
         const unsigned long time);
 
+
+static int schedule_event(light_t *light, unsigned long start_time, 
+        unsigned long end_time, unsigned char to_state);
+
+/* returns the number of events executed, or less than zero on error
+ */
+static int execute_events();
+static int clear_events();
+static int log_event_queue();
+static char* string_from_pin(const char pin);
 
 #endif

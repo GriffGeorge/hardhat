@@ -6,15 +6,27 @@ char foo; //WHY!? This apparently fixes some problems. fml.
 
 #include "lights.h"
 
+//if you change pins here, make sure to also change them in
+//the string_from_pin() function in logging.c
+//3, 5, 6, 9, 10, 11, 13
+#define EYES 3
+#define GB1 5
+#define GB2 6
+#define GB3 9
+#define RA1 10
+#define RA2 11
+#define RA3 13
+
+const light_t *eyes = new_light(EYES);
+const light_t *gb1 = new_light(GB1);
+const light_t *gb2 = new_light(GB2);
+const light_t *gb3 = new_light(GB3);
+const light_t *ra1 = new_light(RA1);
+const light_t *ra2 = new_light(RA2);
+const light_t *ra3 = new_light(RA3);
+
 void setup()
 {
-    pinMode(PIN1, OUTPUT);
-    pinMode(PIN2, OUTPUT);
-    pinMode(PIN3, OUTPUT);
-    pinMode(PIN4, OUTPUT);
-    pinMode(PIN5, OUTPUT);
-    pinMode(PIN6, OUTPUT);
-    pinMode(PIN7, OUTPUT);
 
     Serial.begin(9600);
     // Uncomment to have the arduino wait for serial to connect
@@ -98,21 +110,8 @@ void test_4() {
     Serial.println("TEST 4");
     unsigned long time;
     while (true) {
-    time= millis();
-        light_on(PIN1, time);
-        light_on(PIN2, time+100);
-        light_on(PIN3, time+200);
-        light_on(PIN4, time+300);
-        light_on(PIN5, time+400);
-        light_on(PIN6, time+500);
-        light_on(PIN7, time+600);
-        light_off(PIN1, time+700);
-        light_off(PIN2, time+700);
-        light_off(PIN3, time+700);
-        light_off(PIN4, time+700);
-        light_off(PIN5, time+700);
-        light_off(PIN6, time+700);
-        light_off(PIN7, time+700);
+        time = millis();
+        light_on(
         while (millis() < time+800) {
             execute_events();
         }
