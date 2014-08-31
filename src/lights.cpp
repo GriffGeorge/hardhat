@@ -15,7 +15,7 @@ int events_size = 0;
 light_t* new_light(unsigned char pin) {
     if (lights_size >= MAX_LIGHTS) {
         log_error(ERR_TOO_MANY_LIGHTS, "Can't create light on pin %d", pin);
-        return ERR_TOO_MANY_LIGHTS;
+        return NULL;
     }
 
     lights[lights_size].pin = pin;
@@ -26,12 +26,12 @@ light_t* new_light(unsigned char pin) {
 
     lights_size++;
 
-    return &lights;
+    return &(lights[lights_size-1]);
 }
 
 
 static int schedule_event(light_t *light, unsigned long start_time, 
-        unsigned long end_time, unsigned char to_state);
+        unsigned long end_time, unsigned char to_state)
 {
     //log_verbose("Schedule event with time %lu, write_function %d, pin %s, level %d", 
     //        time, write_function, string_from_pin(pin), level);
@@ -59,7 +59,7 @@ static int schedule_event(light_t *light, unsigned long start_time,
     return SUCCESS;
 }
 
-int execute_event(const event_t *event) {
+static int execute_event(const event_t *event) {
     if (event == NULL) {
         return ERR_BAD_PARAM;
     }
@@ -75,12 +75,12 @@ int execute_event(const event_t *event) {
             case OFF_STATE:
             case FADING_OFF_STATE:
                 digitalWrite(event->light->pin, MIN_LEVEL);
-                light->state = OFF_STATE;
+                event->light->state = OFF_STATE;
                 break;
             case ON_STATE:
             case FADING_ON_STATE:
                 digitalWrite(event->light->pin, MAX_LEVEL);
-                light->state = ON_STATE;
+                event->light->state = ON_STATE;
                 break;
             default:
                 log_error(ERR_INVALID_STATE, "");
@@ -91,17 +91,17 @@ int execute_event(const event_t *event) {
 
     event->light->state = event->to_state;
 
-    if (light->state == FADING_ON_STATE) {
-        analogWrite(light->pin, 
+    if (event->light->state == FADING_ON_STATE) {
+        analogWrite(event->light->pin, 
                 constrain(
-                    map(current_time, start_time, end_time, MIN_LEVEL, 
-                        MAX_LEVEL), 
+                    map(current_time, event->start_time, event->end_time, 
+                        MIN_LEVEL, MAX_LEVEL), 
                     MIN_LEVEL, MAX_LEVEL));
-    } else if (light->state == FADING_OFF_STATE) {
-        analogWrite(light->pin, 
+    } else if (event->light->state == FADING_OFF_STATE) {
+        analogWrite(event->light->pin, 
                 constrain(
-                    map(current_time, start_time, end_time, MAX_LEVEL, 
-                        MIN_LEVEL), 
+                    map(current_time, event->start_time, event->end_time, 
+                        MAX_LEVEL, MIN_LEVEL), 
                     MIN_LEVEL, MAX_LEVEL));
     } else {
         log_error(ERR_UNEXPECTED, "");
@@ -110,7 +110,7 @@ int execute_event(const event_t *event) {
     return SUCCESS;
 }
 
-int execute_events()
+int update_lights()
 {
     //log_verbose("Executing events");
     //log_event_queue(); //log the events (if logging is turned on)
@@ -158,7 +158,7 @@ int execute_events()
                 events_executed++;
             }
 
-            if (curent_time >= cursor->next->end_time) {
+            if (current_time >= cursor->next->end_time) {
                 event_t *event_to_delete = cursor->next;
                 if (last_event == event_to_delete) {
                     last_event = cursor;
@@ -176,7 +176,7 @@ int execute_events()
     return events_executed;
 }
 
-int clear_events()
+static int clear_events()
 {
     //TODO: if events are partway through, complete them.
     while (events != NULL) {

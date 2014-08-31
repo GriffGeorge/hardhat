@@ -26,6 +26,10 @@
 #define ERR_BAD_ENUM            -102
 #define ERR_BAD_PIN             -103
 #define ERR_BAD_WRITE_FUNCTION  -104
+#define ERR_TOO_MANY_LIGHTS     -105
+#define ERR_INVALID_STATE       -106
+#define ERR_NOT_YET             -107
+#define ERR_UNEXPECTED          -108
 
 //static char* error_string(const int error);
 void log_error(const int error, const char *msg_fmt, ...);
