@@ -3,7 +3,6 @@ char foo; //WHY!? This apparently fixes some problems. fml.
 /* Real time loop for Mandy's Hard Hat
 2014 Mandy and Griff
 */
-
 #include "lights.h"
 #include "mic.h"
 
@@ -17,6 +16,9 @@ char foo; //WHY!? This apparently fixes some problems. fml.
 #define RA1 3
 #define RA2 6
 #define RA3 9
+
+#define SAMPLE_SIZE 10
+#define LOG
 
 //#define TEST
 
@@ -37,6 +39,12 @@ light_t *three = new_light(6);
 light_t *four = new_light(9);
 #endif
 
+buffer_t *buffer = NULL;
+int input_type = FILTERED_INPUT;
+int i = 0; //used for the for loop
+float sample_avg = 0.0;
+unsigned char light_level = 0;
+
 void setup()
 {
 
@@ -48,14 +56,60 @@ void setup()
     }
     */
 
-    //init_mics();
-    test_events();
+
+    init_mics(input_type);
+    buffer = get_buffer();
 }
 
 void loop()
 {
-    Serial.println("D");
-    delay(6000);
+    read_levels(input_type);
+
+    sample_avg = 0.0;
+    for(i = 1; i <= SAMPLE_SIZE ; i++) {
+        sample_avg += 
+            abs(buffer->buffer[(buffer->start-i) % BUFFER_SIZE] - 
+                    round(buffer->avg));
+           // Serial.println(abs(buffer->buffer[(buffer->start-i) % BUFFER_SIZE] - 
+            //        round(buffer->avg)));
+    }
+    sample_avg /= SAMPLE_SIZE;
+
+    light_level = constrain(
+            map(sample_avg, round(buffer->avg), 
+                //round(buffer->avg)+(3*round(buffer->avg_deflect)), 
+                round(buffer->avg)+3,
+                MIN_LEVEL, MAX_LEVEL), 
+            MIN_LEVEL, MAX_LEVEL);
+    light_level = 0;
+    if (sample_avg > 1.0) {
+        light_level = 255;
+    }
+
+    analogWrite(EYES, light_level);
+    analogWrite(GB1, light_level);
+    analogWrite(GB2, light_level);
+    analogWrite(GB3, light_level);
+    analogWrite(RA1, light_level);
+    analogWrite(RA2, light_level);
+    analogWrite(RA3, light_level);
+
+#ifdef LOG
+    Serial.print("\t = ");
+    Serial.print(sample_avg);
+    Serial.print("\t");
+    Serial.print(light_level);
+    Serial.print("\t-");
+    /*
+    for(i = 0; i < light_level / 10; i++) {
+        Serial.print("-");
+    }
+    */
+    if (sample_avg > 1.0) {
+        Serial.print("---------");
+    }
+    Serial.println();
+#endif
 }
 
 

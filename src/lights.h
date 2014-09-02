@@ -8,7 +8,7 @@
 #ifndef LIGHTS_H
 #define LIGHTS_H
 
-#include "logging.h"
+#include <Arduino.h>
 
 #define MIN_LEVEL 0
 #define MAX_LEVEL 255

@@ -14,7 +14,6 @@ int events_size = 0;
 
 light_t* new_light(unsigned char pin) {
     if (lights_size >= MAX_LIGHTS) {
-        log_error(ERR_TOO_MANY_LIGHTS, "Can't create light on pin %d", pin);
         return NULL;
     }
 
@@ -33,9 +32,6 @@ light_t* new_light(unsigned char pin) {
 static int schedule_event(light_t *light, unsigned long start_time, 
         unsigned long end_time, unsigned char to_state)
 {
-    //log_verbose("Schedule event with time %lu, write_function %d, pin %s, level %d", 
-    //        time, write_function, string_from_pin(pin), level);
-
     //allocate memory for the new event
     event_t *new_event = (event_t *) malloc(sizeof(event_t));
 
@@ -55,19 +51,18 @@ static int schedule_event(light_t *light, unsigned long start_time,
         last_event = new_event;
     }
 
-    //log_event_queue();
-    return SUCCESS;
+    return 0;
 }
 
 static int execute_event(const event_t *event) {
     if (event == NULL) {
-        return ERR_BAD_PARAM;
+        return -1;
     }
 
     unsigned long current_time = millis();
 
     if (current_time < event->start_time) {
-        return ERR_NOT_YET;
+        return -1;
     }
 
     if (current_time >= event->end_time) {
@@ -83,10 +78,9 @@ static int execute_event(const event_t *event) {
                 event->light->state = ON_STATE;
                 break;
             default:
-                log_error(ERR_INVALID_STATE, "");
-                return ERR_INVALID_STATE;
+                return -1;
         }
-        return SUCCESS;
+        return 0;
     }
 
     event->light->state = event->to_state;
@@ -103,24 +97,18 @@ static int execute_event(const event_t *event) {
                     map(current_time, event->start_time, event->end_time, 
                         MAX_LEVEL, MIN_LEVEL), 
                     MIN_LEVEL, MAX_LEVEL));
-    } else {
-        log_error(ERR_UNEXPECTED, "");
     }
-
-    return SUCCESS;
+    return 0;
 }
 
 int update_lights()
 {
-    //log_verbose("Executing events");
-    //log_event_queue(); //log the events (if logging is turned on)
 
     //three cases: no events, one event, many events
     int events_executed = 0;
 
     //if no events:
     if (events == NULL) {
-        //log_verbose("No events in queue.");
         return events_executed;
     }
 
@@ -165,7 +153,6 @@ int update_lights()
                 }
                 cursor->next = cursor->next->next;
                 free(event_to_delete);
-                //log_event_queue();
                 continue;
             }
         }
@@ -186,34 +173,8 @@ static int clear_events()
     }
     last_event = events;
     events_size = 0;
-    return SUCCESS;
-}
-/*
-int log_event_queue()
-{
-    event_t *cursor = events;
-    log_verbose("Event Queue: (events->%p, last_event->%p)",
-            events, last_event);
-    while (cursor != NULL) {
-        log_verbose("\tAt %lu set pin %s to %d. Pointers: %p->%p", 
-                cursor->time, string_from_pin(cursor->pin), cursor->level,
-                cursor, cursor->next);
-        cursor = cursor->next;
-    }
     return 0;
 }
-*/
-/*
-static char* string_from_pin(const char pin) {
-    switch (pin) {
-    //OUT OF DATE
-        case LED_LEFT:      return "LED_LEFT";
-        case LED_CENTER:    return "LED_CENTER";
-        case LED_RIGHT:     return "LED_RIGHT";
-        default: log_error(ERR_BAD_PIN, "Bad pin number: %d", pin); return "BAD_PIN_NUMBER";
-    }
-}
-*/
 
 void light_on(light_t *light) {
     light_on(light, millis());
