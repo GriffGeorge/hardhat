@@ -47,6 +47,14 @@ void light_on(light_t *light, const unsigned long time);
 void light_off(light_t *light);
 void light_off(light_t *light, const unsigned long time);
 
+void flash_light_on(light_t *light, const unsigned int duration);
+void flash_light_on(light_t *light, const unsigned int duration,
+        const unsigned long time);
+void flash_light_off(light_t *light, const unsigned int duration);
+void flash_light_off(light_t *light, const unsigned int duration,
+        const unsigned long time);
+
+
 void fade_light_on(light_t *light, const unsigned int duration);
 void fade_light_on(light_t *light, const unsigned int duration, 
         const unsigned long time);

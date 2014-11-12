@@ -32,6 +32,17 @@ light_t* new_light(unsigned char pin) {
 static int schedule_event(light_t *light, unsigned long start_time, 
         unsigned long end_time, unsigned char to_state)
 {
+    /*
+    Serial.print("Schedule pin ");
+    Serial.print(light->pin);
+    Serial.print(", start ");
+    Serial.print(start_time);
+    Serial.print(", end ");
+    Serial.print(end_time);
+    Serial.print(", to state ");
+    Serial.println(to_state);
+    */
+
     //allocate memory for the new event
     event_t *new_event = (event_t *) malloc(sizeof(event_t));
 
@@ -189,6 +200,26 @@ void light_off(light_t *light) {
 }
 void light_off(light_t *light, const unsigned long time) {
     schedule_event(light, time, time, OFF_STATE);
+}
+
+void flash_light_on(light_t *light, const unsigned int duration) {
+    flash_light_on(light, duration, millis());
+}
+
+void flash_light_on(light_t *light, const unsigned int duration,
+        const unsigned long time) {
+    light_on(light, time);
+    light_off(light, time+duration);
+}
+
+void flash_light_off(light_t *light, const unsigned int duration) {
+    flash_light_off(light, duration, millis());
+}
+
+void flash_light_off(light_t *light, const unsigned int duration,
+        const unsigned long time) {
+    light_off(light, time);
+    light_on(light, time+duration);
 }
 
 void fade_light_on(light_t *light, const unsigned int duration) {

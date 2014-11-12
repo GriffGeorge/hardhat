@@ -17,7 +17,15 @@ char foo; //WHY!? This apparently fixes some problems. fml.
 #define RA2 6
 #define RA3 9
 
-#define SAMPLE_SIZE 10
+#define BUTTON 1
+
+#define BUFFER_SIZE 512
+#define SAMPLE_SIZE 5
+
+#define FLASH_MODE 0
+#define MUSIC_MODE 1
+#define DEFAULT_MODE FLASH_MODE
+
 #define LOG
 
 //#define TEST
@@ -43,49 +51,212 @@ buffer_t *buffer = NULL;
 int input_type = FILTERED_INPUT;
 int i = 0; //used for the for loop
 float sample_avg = 0.0;
+int index = 0;
 unsigned char light_level = 0;
+unsigned char reverse_light_level = 0;
+
+volatile int mode = DEFAULT_MODE;
+
+void button_interrupt() {
+    static unsigned long last_interrupt_time = 0;
+    unsigned long interrupt_time = millis();
+    if (interrupt_time - last_interrupt_time > 200) {
+        switch (mode) {
+            case FLASH_MODE: mode = MUSIC_MODE; break;
+            case MUSIC_MODE: mode = FLASH_MODE; break;
+            default: mode = DEFAULT_MODE; break;
+        }
+        last_interrupt_time = interrupt_time;
+#ifdef LOG
+        Serial.print("Switch mode to ");
+        Serial.println(mode);
+#endif
+    }
+}
 
 void setup()
 {
 
     Serial.begin(9600);
     // Uncomment to have the arduino wait for serial to connect
+    
     /*
     while(!Serial) {
         delay(10); //wait for serial port to connect
     }
     */
-
-
+    
     init_mics(input_type);
     buffer = get_buffer();
+    attachInterrupt(BUTTON, button_interrupt, LOW);
 }
 
-void loop()
+void loop() {
+    switch (mode) {
+        case FLASH_MODE: flash_mode(); break;
+        case MUSIC_MODE: music_mode(); break;
+        default: mode = DEFAULT_MODE; break;
+    }
+}
+
+void flash_mode() {
+    Serial.println("FLASH MODE");
+    unsigned long time = millis();
+
+    //1800 ms
+    for (int i = 0; i < 3; i++) {
+        flash_light_on(eyes, 100, time);
+        flash_light_on(eyes, 100, time+200);
+        time += 600;
+    }
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //1200 ms
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 4; j++) {
+            flash_light_on(gb1, 50, time+100);
+            flash_light_on(gb2, 50, time+100);
+            flash_light_on(gb3, 50, time+100);
+            time += 100;
+            while (millis() < time) {
+                update_lights();
+            }
+        }
+
+        for (int j = 0; j < 4; j++) {
+            flash_light_on(ra1, 50, time+100);
+            flash_light_on(ra2, 50, time+100);
+            flash_light_on(ra3, 50, time+100);
+            time += 100;
+            while (millis() < time) {
+                update_lights();
+            }
+        }
+    }
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //1200ms
+    for (int i = 0; i < 3; i++) {
+        flash_light_on(gb1, 200, time);
+        flash_light_on(gb2, 200, time);
+        flash_light_on(gb3, 200, time);
+        flash_light_on(ra1, 200, time+200);
+        flash_light_on(ra2, 200, time+200);
+        flash_light_on(ra3, 200, time+200);
+        time += 400;
+    }
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //800ms
+    flash_light_on(gb1, 200, time);
+    flash_light_on(gb2, 200, time+100);
+    flash_light_on(gb3, 200, time+200);
+    flash_light_on(ra3, 200, time+300);
+    flash_light_on(ra2, 200, time+400);
+    flash_light_on(ra1, 200, time+500);
+    flash_light_on(eyes, 200, time+600);
+    time += 800;
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //600ms
+    light_on(gb1, time);
+    light_on(gb2, time+100);
+    light_on(gb3, time+200);
+    light_on(ra3, time+300);
+    light_on(ra2, time+400);
+    light_on(ra1, time+500);
+    light_on(eyes, time+600);
+    time += 600;
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //800ms
+    flash_light_off(gb1, 200, time);
+    flash_light_off(gb2, 200, time+100);
+    flash_light_off(gb3, 200, time+200);
+    flash_light_off(ra3, 200, time+300);
+    flash_light_off(ra2, 200, time+400);
+    flash_light_off(ra1, 200, time+500);
+    flash_light_off(eyes, 200, time+600);
+    time += 800;
+
+    while (millis() < time) {
+        update_lights();
+    }
+
+    //600ms
+    light_off(gb1, time);
+    light_off(gb2, time+100);
+    light_off(gb3, time+200);
+    light_off(ra3, time+300);
+    light_off(ra2, time+400);
+    light_off(ra1, time+500);
+    light_off(eyes, time+600);
+    time += 600;
+
+    while (millis() < time) {
+        update_lights();
+    }
+}
+
+void music_mode()
 {
     read_levels(input_type);
 
+#ifdef LOG
+    Serial.print("\t");
+#endif
+
     sample_avg = 0.0;
+    index = 0;
     for(i = 1; i <= SAMPLE_SIZE ; i++) {
-        sample_avg += 
-            abs(buffer->buffer[(buffer->start-i) % BUFFER_SIZE] - 
-                    round(buffer->avg));
-           // Serial.println(abs(buffer->buffer[(buffer->start-i) % BUFFER_SIZE] - 
-            //        round(buffer->avg)));
+        index = ((buffer->start-i) % 512);
+        if (index < 0) {
+            sample_avg += 0;
+        } else {
+            sample_avg += 
+                abs(buffer->buffer[index] - 
+                        round(buffer->avg));
+        }
+#ifdef LOG
+        /*
+            Serial.print((buffer->start-i) % BUFFER_SIZE);
+            Serial.print(":");
+            Serial.print(abs(buffer->buffer[(buffer->start-i) % BUFFER_SIZE] - 
+                    round(buffer->avg)));
+            Serial.print(", ");
+        */
+#endif
     }
     sample_avg /= SAMPLE_SIZE;
 
-    light_level = constrain(
-            map(sample_avg, round(buffer->avg), 
-                //round(buffer->avg)+(3*round(buffer->avg_deflect)), 
-                round(buffer->avg)+3,
-                MIN_LEVEL, MAX_LEVEL), 
-            MIN_LEVEL, MAX_LEVEL);
-    light_level = 0;
-    if (sample_avg > 1.0) {
-        light_level = 255;
-    }
+    light_level = constrain(map(
+            (int)(sample_avg*100),
+            (int)(abs(buffer->avg_deflect*100)),
+            (int)(abs(buffer->avg_deflect*200)),
+            0, 255), MIN_LEVEL, MAX_LEVEL);
 
+    reverse_light_level = map(light_level, 0, 255, 100, 0);
+    
+
+    if (light_level < MAX_LEVEL/4) {
+        light_level = 0;
+        reverse_light_level = 100;
+    }
     analogWrite(EYES, light_level);
     analogWrite(GB1, light_level);
     analogWrite(GB2, light_level);
@@ -99,109 +270,16 @@ void loop()
     Serial.print(sample_avg);
     Serial.print("\t");
     Serial.print(light_level);
-    Serial.print("\t-");
+    Serial.print("\t");
+    Serial.print(reverse_light_level);
+
     /*
     for(i = 0; i < light_level / 10; i++) {
         Serial.print("-");
     }
     */
-    if (sample_avg > 1.0) {
-        Serial.print("---------");
-    }
     Serial.println();
 #endif
 }
 
 
-void test_events() {
-    Serial.println("BEGIN TEST");
-    test_1();
-    test_2();
-    Serial.println("END TEST");
-}
-
-#ifndef TEST
-void test_1() {
-    Serial.println("TEST 1");
-    update_lights();
-    unsigned long time = millis();
-    light_on(eyes, time);
-    light_off(eyes, time+500);
-    light_on(gb1, time+500);
-    light_off(gb1, time+1000);
-    light_on(gb2, time+1000);
-    light_off(gb2, time+1500);
-    light_on(gb3, time+1500);
-    light_off(gb3, time+2000);
-    light_on(ra1, time+2000);
-    light_off(ra1, time+2500);
-    light_on(ra2, time+2500);
-    light_off(ra2, time+3000);
-    light_on(ra3, time+3000);
-    light_off(ra3, time+3500);
-    while (millis() < time+4000) {
-        update_lights();
-    }
-}
-
-void test_2() {
-    Serial.println("TEST 2");
-    update_lights();
-    unsigned long time = millis();
-    fade_light_on(eyes, 1000, time);
-    fade_light_off(eyes, 1000, time+500);
-    fade_light_on(gb1, 1000, time+500);
-    fade_light_off(gb1, 1000, time+1000);
-    fade_light_on(gb2, 1000, time+1000);
-    fade_light_off(gb2, 1000, time+1500);
-    fade_light_on(gb3, 1000, time+1500);
-    fade_light_off(gb3, 1000, time+2000);
-    fade_light_on(ra1, 1000, time+2000);
-    fade_light_off(ra1, 1000, time+2500);
-    fade_light_on(ra2, 1000, time+2500);
-    fade_light_off(ra2, 1000, time+3000);
-    fade_light_on(ra3, 1000, time+3000);
-    fade_light_off(ra3, 1000, time+3500);
-    while (millis() < time+5000) {
-        update_lights();
-    }
-}
-#endif
-
-#ifdef TEST
-void test_1() {
-    Serial.println("TEST 1");
-    update_lights();
-    unsigned long time = millis();
-    light_off(one, time+250);
-    light_on(two, time+250);
-    light_off(two, time+500);
-    light_on(three, time+500);
-    light_off(three, time+750);
-    light_on(four, time+750);
-    light_off(four, time+1000);
-    light_on(one, time);
-    while(millis() < time+1500) {
-        update_lights();
-    }
-}
-
-void test_2() {
-    Serial.println("TEST 2");
-    update_lights();
-    unsigned long time = millis();
-    fade_light_on(two, 500, time+250);
-    fade_light_on(three, 500, time+500);
-    fade_light_on(four, 500, time+750);
-
-    fade_light_off(one, 500, time+500);
-    fade_light_off(two, 500, time+750);
-    fade_light_off(three, 500, time+1000);
-    fade_light_off(four, 500, time+1250);
-    fade_light_on(one, 500, time);
-
-    while(millis() < time+2000) {
-        update_lights();
-    }
-}
-#endif

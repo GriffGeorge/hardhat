@@ -9,7 +9,7 @@
 
 #include <Arduino.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 512
 
 #define FILTERED_INPUT 0
 #define UNFILTERED_INPUT 1
